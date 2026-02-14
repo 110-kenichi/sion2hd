@@ -1,6 +1,6 @@
-# SION II HD for ossiloscope
+# SION II HD for ANALOG ossiloscope
 
-1. Connect audio L,R ch to ossiloscope.
+1. Connect audio L,R ch to ANALOG ossiloscope.
 2. Set X-Y mode
 3. Start www server on ./www folder and access to the URL by Web browser.
 4. Set SIONII HDX OPTION "SOUND" to "OFF"
