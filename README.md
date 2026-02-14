@@ -6,10 +6,14 @@
 4. Set SIONII HDX OPTION "SOUND" to "OFF"
 5. Start game
 
-## NOTE
+## Note
 
 - xy-processor.js: X-Y mode renderer
 - magic2.es6: MAGIC library
+
+## Limitation
+
+- The DC offset shifts, but that's part of the Web Audio specification.
 
 # SION II HD
 HTML5 based X68k emulation environment specialized for running SION2 with high resolution graphics.
