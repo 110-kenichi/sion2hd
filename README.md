@@ -14,6 +14,7 @@
 ## Limitation
 
 - The DC offset shifts, but that's part of the Web Audio specification.
+- No HUD
 
 # SION II HD
 HTML5 based X68k emulation environment specialized for running SION2 with high resolution graphics.
