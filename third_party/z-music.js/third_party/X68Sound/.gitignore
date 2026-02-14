@@ -1,0 +1,14 @@
+# Compiled Object files
+*.obj
+*.res
+
+# Compiled Dynamic libraries
+*.dll
+*.lib
+
+# Compiled Static libraries
+*.exp
+
+# Backup files
+*.*~
+*.bak

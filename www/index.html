@@ -106,6 +106,10 @@
       document.fonts.load('10px \'Fira Mono\'');
       document.fonts.load('10px Geo');
       var canvas = document.getElementsByTagName('canvas');
+
+      var audioContext = new (window.AudioContext || window.webkitAudioContext);
+      window.audioCtx = audioContext;
+
       /* global Magic2 */
       var magic2 = new Magic2(Array.prototype.map.call(canvas, function(c) {
         // Changes canvas size to fullfill the window.
@@ -129,9 +133,35 @@
       var zmd = {};
       var se = {};
       var zmdPending = 0;
-      var audioContext = new (window.AudioContext || window.webkitAudioContext);
+
+      // ハイパスフィルタ
+      const hpf = audioContext.createBiquadFilter();
+      hpf.type = "highpass";
+      hpf.frequency.value = 3000; // 低域を削る
+      hpf.Q.value = 0.7;
+      // HPF の後ろにゲインノードを置く
+      // 音楽のゲイン（全体の音量）
+      const musicGain = audioCtx.createGain();
+      musicGain.gain.value = 0.50; // 図形の 3% 程度に抑える
+      // L/R に分ける
+      const splitter = audioCtx.createChannelSplitter(2);
+      // L/R を合成する
+      const merger = audioCtx.createChannelMerger(2);
+      // 逆相用のゲイン
+      const invertGain = audioCtx.createGain();
+      invertGain.gain.value = -1; // ← これで逆相になる
+      // 接続
+      hpf.connect(musicGain).connect(splitter);
+      // L = +音楽
+      splitter.connect(merger, 0, 0);
+      // R = −音楽（逆相）
+      splitter.connect(invertGain, 0, 0);
+      invertGain.connect(merger, 0, 1);
+      // 出力
+      merger.connect(audioCtx.destination);
+
       var reverb = audioContext.createConvolver();
-      reverb.connect(audioContext.destination);
+      reverb.connect(hpf);
       xhr('ir.wav').then(data =>
           audioContext.decodeAudioData(data, buffer => reverb.buffer = buffer));
 
@@ -195,8 +225,10 @@
               xhr('sion2/NEIRO.ZMS'),
               xhr('sion2/SION2.ZPD')
           ]).then(results => {
-            if (navigator.xr)
-              document.getElementsByTagName('button')[0].style.display = 'block';
+            /* global navigator */
+            navigator.xr && navigator.xr.isSessionSupported('immersive-vr').then(result => {
+              document.getElementsByTagName('button')[0].style.display = result ? 'block' : 'none';
+            });
             window.config.start();
             if (navigator.userAgent.indexOf('iPhone') >= 0) {
               document.addEventListener('touchstart', e => {
@@ -219,15 +251,15 @@
             ZMUSIC.disconnect();
             ZMUSIC.resume();
             if (config.useSound())
-              ZMUSIC.connect(audioContext.destination);
+              ZMUSIC.connect(hpf);
             if (config.useReverb())
               ZMUSIC.connect(reverb);
             Module._set_slow_mode(config.slowMode());
             window.io_set_mode(config.videoMode());
-            document.getElementsByTagName('button')[0].style.display = 'none';
           };
           Module.addRunDependency("config");
           config.ready.then(function() {
+            // document.getElementsByTagName('button')[0].style.display = 'none';
             Module.removeRunDependency("config");
             config.onupdate();
           });

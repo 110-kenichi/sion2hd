@@ -1,0 +1,29 @@
+{
+  "name": "magic2.js",
+  "version": "0.7.0",
+  "description": "MAGIC2: a wireframe graphics library",
+  "main": "magic2.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/toyoshim/magic2.js.git"
+  },
+  "author": "Takashi Toyoshima <toyoshim@gmail.com> (https://blog.toyoshima-house.net/)",
+  "license": "SEE LICENSE IN LICENSE",
+  "bugs": {
+    "url": "https://github.com/toyoshim/magic2.js/issues"
+  },
+  "homepage": "https://github.com/toyoshim/magic2.js#readme",
+  "devDependencies": {
+    "@babel/core": "^7.10.4",
+    "@babel/preset-env": "^7.10.4",
+    "gulp": ">=4.0.2",
+    "gulp-babel": "^8.0.0",
+    "gulp-rename": ">=2.0.0",
+    "gulp-uglify": ">=3.0.2",
+    "uglify-es": "^3.3.9"
+  },
+  "dependencies": {}
+}
