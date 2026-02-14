@@ -3,11 +3,12 @@
 // Copyright 2016 Takashi Toyoshima <toyoshim@gmail.com>. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 (function (global) {
-  'use strict'; // A special symbol to hide private members.
+  'use strict';
 
+  // A special symbol to hide private members.
   const _ = Symbol();
-
   async function init() {
     await window.audioCtx.audioWorklet.addModule("xy-processor.js");
     const node = new AudioWorkletNode(window.audioCtx, "xy-processor", {
@@ -15,9 +16,9 @@
     });
     node.connect(window.audioCtx.destination);
     window.xyNode = node;
-  } // MAGIC2 Commands.
+  }
 
-
+  // MAGIC2 Commands.
   const C_LINE = 0x00;
   const C_SPLINE = 0x01;
   const C_BOX = 0x02;
@@ -38,8 +39,9 @@
   const C_INIT = 0x12;
   const C_AUTO = 0x13;
   const C_APAGE = 0x14;
-  const C_DEPTH = 0x15; // 3D Parameters.
+  const C_DEPTH = 0x15;
 
+  // 3D Parameters.
   const P_CX = 0;
   const P_CY = 1;
   const P_CZ = 2;
@@ -48,35 +50,34 @@
   const P_DZ = 5;
   const P_HEAD = 6;
   const P_PITCH = 7;
-  const P_BANK = 8; // VR mode.
+  const P_BANK = 8;
 
+  // VR mode.
   const V_NORMAL = 0;
   const V_SPLIT = 1;
   const V_COLOR = 2;
+
   /**
    * Decodes an unsigned 16-bit number in big endian.
    * @param {Uint8Array} memory memory image
    * @param {Number} addr memory address
    * @param {Number} read value
    */
-
   const mem_read_u16be = function (memory, addr) {
     return memory[addr] << 8 | memory[addr + 1];
   };
+
   /**
    * Decodes a signed 16-bit number in big endian.
    * @param {Uint8Array} memory memory image
    * @param {Number} addr memory address
    * @param {Number} read value
    */
-
-
   const mem_read_s16be = function (memory, addr) {
     const u16be = mem_read_u16be(memory, addr);
     if (u16be < 0x8000) return u16be;
     return u16be - 0x10000;
   };
-
   const translate = {
     x: 0.0,
     y: 0.0,
@@ -183,7 +184,6 @@ void main() {
   gl_FragColor = vec4(vColor, 1.0);
 }
 `;
-
   class XR {
     constructor() {
       this.activated = false;
@@ -203,17 +203,14 @@ void main() {
       this.indices = new Uint16Array(8192 * 2);
       this.nIndices = 0;
     }
-
     quit() {
       this.gl = null;
     }
-
     async enter(mainLoop) {
       this.mainLoop = mainLoop;
       if (this.activated) return;
       this.activated = true;
-      if (!navigator.xr)
-        /* global navigator */
+      if (!navigator.xr) /* global navigator */
         return;
       if (!(await navigator.xr.isSessionSupported('immersive-vr'))) return;
       if (this.session) return;
@@ -222,17 +219,13 @@ void main() {
       this.session.addEventListener('inputsourceschange', e => {
         for (let added of e.added) this.controllers = [added.gamepad].concat(this.controllers);
       });
-
       navigator.getGamepads = () => {
         return this.controllers;
       };
-
       this.gl = document.getElementById('xr').getContext('webgl', {
         xrCompatible: true
       });
-      const layer = new XRWebGLLayer(this.session, this.gl);
-      /* global XRWebGLLayer */
-
+      const layer = new XRWebGLLayer(this.session, this.gl); /* global XRWebGLLayer */
       this.session.updateRenderState({
         baseLayer: layer,
         depthFar: 10000
@@ -254,14 +247,12 @@ void main() {
       this.vbuffer = this.gl.createBuffer();
       this.cbuffer = this.gl.createBuffer();
       this.ibuffer = this.gl.createBuffer();
-
       const rAF = (time, frame) => {
         this.session.requestAnimationFrame(rAF);
         if (!this.session.renderState.baseLayer) return;
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.session.renderState.baseLayer.framebuffer);
         const pose = frame.getViewerPose(this.space);
         let i = 0;
-
         for (const view of pose.views) {
           this.views[i++] = {
             port: this.session.renderState.baseLayer.getViewport(view),
@@ -270,31 +261,25 @@ void main() {
             pos: view.transform.position
           };
         }
-
         mainLoop();
       };
-
       rAF();
-
       if (!this.activated) {
         this.activated = true;
         this.leave();
       }
     }
-
     async leave() {
       if (!this.activated) return;
       this.activated = false;
       if (!this.session) return;
       await this.session.end();
       this.session = null;
-
       if (this.activated) {
         this.activated = false;
         this.enter(this.mainLoop);
       }
     }
-
     display2d(contrast) {
       if (!this.views[0]) return;
       this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -314,7 +299,6 @@ void main() {
       const cindex = this.gl.getAttribLocation(this.program, 'aColor');
       this.gl.vertexAttribPointer(cindex, 3, this.gl.FLOAT, false, 0, 0);
       this.gl.enableVertexAttribArray(cindex);
-
       for (const view of this.views) {
         this.gl.viewport(view.port.x, view.port.y, view.port.width, view.port.height);
         const pmatLocation = this.gl.getUniformLocation(this.program, 'uPMat');
@@ -327,12 +311,10 @@ void main() {
         this.gl.uniform1f(contrastLocation, contrast);
         this.gl.drawElements(this.gl.LINES, this.nIndices, this.gl.UNSIGNED_SHORT, 0);
       }
-
       this.nCoords = 0;
       this.nIndices = 0;
       this.gl.flush();
     }
-
     draw(data, parameters, depth, palette) {
       const src = data.vertices;
       const pctx3 = data.pct * 3;
@@ -341,10 +323,9 @@ void main() {
       const r = palette[data.color].r / 255;
       const g = palette[data.color].g / 255;
       const b = palette[data.color].b / 255;
-
       for (let i = 0; i < pctx3; i += 3) {
-        translate.convert(src[i + 0], src[i + 1], src[i + 2]); // Convert MAGIC world to GL world.
-
+        translate.convert(src[i + 0], src[i + 1], src[i + 2]);
+        // Convert MAGIC world to GL world.
         this.coords[this.nCoords * 3 + 0] = translate.x;
         this.coords[this.nCoords * 3 + 1] = -translate.y;
         this.coords[this.nCoords * 3 + 2] = -translate.z;
@@ -353,15 +334,13 @@ void main() {
         this.colors[this.nCoords * 3 + 2] = b;
         this.nCoords++;
       }
-
       const indices = data.indices;
       const lctx2 = data.lct * 2;
       const maxz = depth.maxz + depth.minz;
-
       for (let i = 0; i < lctx2; i += 2) {
         const s = baseCoords + indices[i + 0];
-        const e = baseCoords + indices[i + 1]; // Simplified MAGIC world clipping.
-
+        const e = baseCoords + indices[i + 1];
+        // Simplified MAGIC world clipping.
         const sz = -this.coords[s * 3 + 2];
         const ez = -this.coords[e * 3 + 2];
         if (sz < 0 || maxz < sz || ez < 0 || maxz < ez) continue;
@@ -369,9 +348,7 @@ void main() {
         this.indices[this.nIndices++] = e;
       }
     }
-
   }
-
   class Magic2 {
     // constructor
     // @param {Array<CanvasRenderingContext2D>} contexts
@@ -379,7 +356,6 @@ void main() {
       (async () => {
         await init();
       })();
-
       this[_] = {
         // private members
         window: {
@@ -418,91 +394,106 @@ void main() {
           g: 0,
           b: 0,
           c: 'rgba(  0,   0,   0, 1.0)'
-        }, //  0
+        },
+        //  0
         {
           r: 85,
           g: 85,
           b: 85,
           c: 'rgba( 85,  85,  85, 1.0)'
-        }, //  1
+        },
+        //  1
         {
           r: 0,
           g: 0,
           b: 127,
           c: 'rgba(  0,   0, 127, 1.0)'
-        }, //  2
+        },
+        //  2
         {
           r: 0,
           g: 0,
           b: 255,
           c: 'rgba(  0,   0, 255, 1.0)'
-        }, //  3
+        },
+        //  3
         {
           r: 127,
           g: 0,
           b: 0,
           c: 'rgba(127,   0,   0, 1.0)'
-        }, //  4
+        },
+        //  4
         {
           r: 255,
           g: 0,
           b: 0,
           c: 'rgba(255,   0,   0, 1.0)'
-        }, //  5
+        },
+        //  5
         {
           r: 127,
           g: 0,
           b: 127,
           c: 'rgba(127,   0, 127, 1.0)'
-        }, //  6
+        },
+        //  6
         {
           r: 255,
           g: 0,
           b: 255,
           c: 'rgba(255,   0, 255, 1.0)'
-        }, //  7
+        },
+        //  7
         {
           r: 0,
           g: 127,
           b: 0,
           c: 'rgba(  0, 127,   0, 1.0)'
-        }, //  8
+        },
+        //  8
         {
           r: 0,
           g: 255,
           b: 0,
           c: 'rgba(  0, 255,   0, 1.0)'
-        }, //  9
+        },
+        //  9
         {
           r: 0,
           g: 127,
           b: 127,
           c: 'rgba(  0, 127, 127, 1.0)'
-        }, // 10
+        },
+        // 10
         {
           r: 0,
           g: 255,
           b: 255,
           c: 'rgba(  0, 255, 255, 1.0)'
-        }, // 11
+        },
+        // 11
         {
           r: 127,
           g: 127,
           b: 0,
           c: 'rgba(127, 127,   0, 1.0)'
-        }, // 12
+        },
+        // 12
         {
           r: 255,
           g: 255,
           b: 0,
           c: 'rgba(255, 255,   0, 1.0)'
-        }, // 13
+        },
+        // 13
         {
           r: 170,
           g: 170,
           b: 170,
           c: 'rgba(170, 170, 170, 1.0)'
-        }, // 14
+        },
+        // 14
         {
           r: 255,
           g: 255,
@@ -533,38 +524,33 @@ void main() {
           var vertices = this[_].translate.vertices;
           translate.setup(this[_].parameters, context.position, this[_].depth.minz);
           var i;
-
           for (i = 0; i < pctx3; i += 3) {
             translate.convert(src[i + 0], src[i + 1], src[i + 2]);
             vertices[i + 0] = translate.x;
             vertices[i + 1] = translate.y;
             vertices[i + 2] = translate.z;
           }
-
           if (this.vr()) {
             var orientation = this[_].orientation;
             camera.setup(orientation.alpha + context.alpha, orientation.beta, orientation.gamma);
-
             for (i = 0; i < pctx3; i += 3) {
               camera.convert(vertices[i + 0], vertices[i + 1], vertices[i + 2]);
               vertices[i + 0] = camera.x;
               vertices[i + 1] = camera.y;
               vertices[i + 2] = camera.z;
             }
-          } // Perspective
+          }
 
-
+          // Perspective
           var maxz = this[_].depth.maxz + this[_].depth.minz;
-
           for (i = 0; i < pctx3; i += 3) {
             var nz = vertices[i + 2];
             if (nz <= 0 || maxz < nz) continue;
             var d = nz / 256;
             vertices[i + 0] /= d;
             vertices[i + 1] /= d;
-          } // Draw
-
-
+          }
+          // Draw
           var indices = this[_].data.indices;
           var lctx2 = this[_].data.lct * 2;
           var c = this[_].contexts[this[_].bgcontext];
@@ -578,11 +564,10 @@ void main() {
           var w = 256 * context.scaleX;
           var h = 256 * context.scaleY;
           var ox = context.base + context.width / 2;
-          var oy = h / 2; // FIXME: Use window information
-
+          var oy = h / 2;
+          // FIXME: Use window information
           var zx = w / 256;
           var zy = h / 256;
-
           for (i = 0; i < lctx2; i += 2) {
             var s = indices[i + 0] * 3;
             var e = indices[i + 1] * 3;
@@ -591,16 +576,11 @@ void main() {
             if (sz <= 0 || maxz < sz || ez <= 0 || maxz < ez) continue;
             c.moveTo(ox + vertices[s + 0] * zx, oy + vertices[s + 1] * zy);
             c.lineTo(ox + vertices[e + 0] * zx, oy + vertices[e + 1] * zy);
-
             this[_].xpts.push((127 + vertices[s + 0]) / 127 - 1.0);
-
             this[_].ypts.push((127 + vertices[s + 1]) / 127 - 1.0);
-
             this[_].xpts.push((127 + vertices[e + 0]) / 127 - 1.0);
-
             this[_].ypts.push((127 + vertices[e + 1]) / 127 - 1.0);
           }
-
           c.closePath();
           c.stroke();
           c.restore();
@@ -610,14 +590,12 @@ void main() {
       fg.canvas.style.display = 'block';
       const bg = this[_].contexts[this[_].bgcontext];
       bg.canvas.style.display = 'none';
-
       for (let context of this[_].contexts) {
         if (!context) continue;
         context.clearRect(0, 0, fg.canvas.width, fg.canvas.height);
         context.globalCompositeOperation = 'lighter';
       }
     }
-
     palette(index, color) {
       if (color == undefined) return this[_].palette[index];
       var i = (color & 1) == 0 ? 0 : 4;
@@ -628,32 +606,27 @@ void main() {
       palette.r = r;
       palette.g = g;
       palette.b = b;
-
       this[_].updatePalette(index);
-    } // Should be called from an event handler for user interactions.
+    }
 
-
+    // Should be called from an event handler for user interactions.
     xr(enable, mainLoop) {
       if (enable) {
-        this.vr(V_SPLIT); //this[_].contexts[this[_].fgcontext].canvas.style.display = 'none';
+        this.vr(V_SPLIT);
+        //this[_].contexts[this[_].fgcontext].canvas.style.display = 'none';
         //this[_].contexts[this[_].bgcontext].canvas.style.display = 'none';
-
         this[_].xr.enter(mainLoop);
       } else {
         this[_].xr.leave();
       }
     }
-
     vr(mode) {
       var result = this[_].vr;
       if (mode === undefined) return result;
       this[_].vr = mode;
-
       for (let i = 0; i < 16; ++i) this[_].updatePalette(i);
-
       return result;
     }
-
     orientation(alpha, beta, gamma) {
       const orientation = this[_].orientation;
       if (orientation.baseAlpha === undefined) orientation.baseAlpha = alpha;
@@ -661,7 +634,6 @@ void main() {
       orientation.beta = beta;
       orientation.gamma = gamma;
     }
-
     context(mode) {
       const split = this[_].vr == V_SPLIT;
       const c = this[_].contexts[0].canvas;
@@ -681,18 +653,14 @@ void main() {
         scaleY: c.height / 256
       };
     }
-
     vsync(client) {
       this[_].clients.push(client);
     }
-
     drawPolyline(xpoints, ypoints) {
       const pts = [];
-
       for (let i = 0; i < xpoints.length; i++) {
         pts.push([xpoints[i], -ypoints[i]]);
       }
-
       pts.push([-1, -1]);
       pts.push([1, -1]);
       pts.push([1, -1]);
@@ -706,18 +674,16 @@ void main() {
         points: pts
       });
     }
+
     /**
      * Magic2 API: Strokes lines.
      * @param {Array<number>} x points, [x1, x2, ..., xN]
      * @param {Array<number>} y points, [y1, y2, ..., yN]
      */
-
-
     line(x, y) {
       const c = this[_].contexts[this[_].apage];
       const n = x.length;
       console.log('line', x, y);
-
       if (this[_].xr.activated) {
         // TODO
         console.log('line', x, y);
@@ -726,31 +692,26 @@ void main() {
         c.strokeStyle = this[_].palette[this[_].color][c1.color];
         c.beginPath();
         c.moveTo(x[0] * c1.scaleX + c1.offset, y[0] * c1.scaleY);
-
         for (let i = 1; i < n; ++i) c.lineTo(x[i] * c1.scaleX + c1.offset, y[i] * c1.scaleY);
-
         c.stroke();
         const c2 = this.context(2);
         c.strokeStyle = this[_].palette[this[_].color][c2.color];
         c.beginPath();
         c.moveTo(x[0] * c2.scaleX + c2.offset, y[0] * c2.scaleY);
-
         for (let i = 1; i < n; ++i) c.lineTo(x[i] * c2.scaleX + c2.offset, y[i] * c2.scaleY);
-
         c.stroke();
       } else {
         const context = this.context(0);
         c.strokeStyle = this[_].palette[this[_].color][context.color];
         c.beginPath();
         c.moveTo(x[0] * context.scaleX + context.offset, y[0] * context.scaleY);
-
         for (let i = 1; i < n; ++i) {
           c.lineTo(x[i] * context.scaleX + context.offset, y[i] * context.scaleY);
         }
-
         c.stroke();
       }
     }
+
     /**
      * Magic2 API: Fill a box.
      * @param {number} x1 x1
@@ -758,15 +719,12 @@ void main() {
      * @param {number} x2 x2
      * @param {number} y2 y2
      */
-
-
     boxFull(x1, y1, x2, y2) {
       const left = Math.min(x1, x2);
       const top = Math.min(y1, y2);
       const width = Math.abs(x2 - x1);
       const height = Math.abs(y2 - y1);
       const c = this[_].contexts[this[_].apage];
-
       if (this[_].xr.activated) {
         // TODO
         console.log('box', x1, y1, x2, y2);
@@ -783,6 +741,7 @@ void main() {
         c.fillRect(left * context.scaleX + context.offset, top * context.scaleY, width * context.scaleX, height * context.scaleY);
       }
     }
+
     /**
      * Magic2 API: Sets window rectangle.
      * @param {number} x1 x1
@@ -790,23 +749,21 @@ void main() {
      * @param {number} x2 x2
      * @param {number} y2 y2
      */
-
-
     setWindow(x1, y1, x2, y2) {
       this[_].window.x = x1;
       this[_].window.y = y1;
       this[_].window.w = x2 - x1;
       this[_].window.h = y2 - y1;
     }
+
     /**
      * Magic2 API: Clears screen.
      */
-
-
     cls() {
       const c = this[_].contexts[this[_].apage];
       c.clearRect(0, 0, c.canvas.width, c.canvas.height);
     }
+
     /**
      * Magic2 API: Sets translate parameters.
      * @param {number} num parameter ID
@@ -816,11 +773,10 @@ void main() {
      *     HEAD/PITCH/BANK: rotation
      * @param {number} data parameter
      */
-
-
     set3dParameter(num, data) {
       this[_].parameters[num] = data;
     }
+
     /**
      * Magic2 API: Sets a 3D object data. The stored object will be translated
      * with 3D parameters, and will be drawn by translate2dTo3d().
@@ -831,8 +787,6 @@ void main() {
      *     [s1, e1, s2, ..., eN]
      * @param {number} color palette code (optional)
      */
-
-
     set3dData(pct, vertices, lct, indices, color) {
       this[_].data.pct = pct;
       this[_].data.vertices = vertices;
@@ -840,178 +794,147 @@ void main() {
       this[_].data.indices = indices;
       this[_].data.color = color !== undefined ? color : this[_].color;
     }
+
     /**
      * Magic2 API: Parses a 3D object data and sets it.
      * @param {Uint8Array} memory image
      * @param {number} addr address of the 3D object in |memory|
      */
-
-
     set3dRawData(memory, addr) {
       const base = addr;
       this[_].data.pct = mem_read_u16be(memory, addr);
       addr += 2;
-
       for (let i = 0; i < this[_].data.pct; ++i) {
         this[_].data.vertices[i * 3 + 0] = mem_read_s16be(memory, addr + 0);
         this[_].data.vertices[i * 3 + 1] = mem_read_s16be(memory, addr + 2);
         this[_].data.vertices[i * 3 + 2] = mem_read_s16be(memory, addr + 4);
         addr += 6;
       }
-
       this[_].data.lct = mem_read_u16be(memory, addr);
       addr += 2;
-
       if (this[_].cext) {
         this[_].data.color = mem_read_u16be(memory, addr) & 0x0f;
         addr += 2;
       } else {
         this[_].data.color = this[_].color;
       }
-
       for (let i = 0; i < this[_].data.lct; ++i) {
         this[_].data.indices[i * 2 + 0] = mem_read_u16be(memory, addr + 0);
         this[_].data.indices[i * 2 + 1] = mem_read_u16be(memory, addr + 2);
         addr += 4;
       }
-
       return addr - base;
     }
+
     /**
      * Magic2 API: Converts a prepared 3D object vertices and draws it onto the
      * offscreen.
      */
-
-
     translate3dTo2d() {
       if (this[_].xr.activated) {
         this[_].xr.draw(this[_].data, this[_].parameters, this[_].depth, this[_].palette);
       } else if (this[_].vr) {
         this[_].draw(this.context(1));
-
         this[_].draw(this.context(2));
       } else {
         this[_].draw(this.context(0));
       }
     }
+
     /**
      * Magic2 API: Swaps offscreen and show rendered 3D data. Internnaly page 0
      * and 1 are used for rendering 3D objects in offscreen. translate3dTo2d()
      * actually renders a 3D object into the offscreen, and display2d() swap
      * the active page and offscreen page each other.
      */
-
-
     display2d() {
       if (this[_].xr.activated) {
         const fg = this[_].contexts[2];
         const c1 = this.context(1);
         const c2 = this.context(2);
         fg.clearRect(0, 0, fg.canvas.width, fg.canvas.height);
-
         for (let client of this[_].clients) client(fg, [c1, c2]);
-
         this[_].xr.display2d(this[_].contrast);
-
         return;
       }
-
       const previous = this[_].fgcontext;
       this[_].fgcontext = this[_].bgcontext;
       this[_].bgcontext = previous;
       const fg = this[_].contexts[this[_].fgcontext];
       const bg = this[_].contexts[this[_].bgcontext];
-
       if (this[_].vr) {
         var c1 = this.context(1);
         var c2 = this.context(2);
-
         for (var client of this[_].clients) client(fg, [c1, c2]);
-
         bg.clearRect(0, 0, bg.canvas.width, bg.canvas.height);
         bg.fillStyle = this[_].palette[0][c1.color];
         bg.fillRect(0, 0, bg.canvas.width, bg.canvas.height); // TODO: wrong
-
         bg.fillStyle = this[_].palette[0][c2.color];
         bg.fillRect(0, 0, bg.canvas.width, bg.canvas.height); // TODO: wrong
       } else {
         var c = this.context(0);
-
         for (var client of this[_].clients) client(fg, [c]);
-
         bg.clearRect(0, 0, bg.canvas.width, bg.canvas.height);
         bg.fillStyle = this[_].palette[0][c.color];
         bg.fillRect(0, 0, bg.canvas.width, bg.canvas.height);
       }
-
       fg.canvas.style.display = 'block';
       bg.canvas.style.display = 'none';
       this.drawPolyline(this[_].xpts, this[_].ypts);
       this[_].xpts.length = 0;
       this[_].ypts.length = 0;
     }
+
     /**
      * Magic2 API: Sets color for 2D drawing.
      * @param {number} color color palette code
      */
-
-
     color(color) {
       this[_].color = color;
     }
+
     /**
      * Magic2 API: Sets CRT mode.
      * @param {number} crt CRT mode
      *   crt >= 0x100: extended mode (to make set3dData accept color data)
      */
-
-
     crt(crt) {
       console.warn('magic2: partially ignoring command CRT, ' + crt);
       this[_].cext = (crt & 0x100) != 0;
     }
+
     /**
      * Magic2 API: Executes magic commands stored in the specified memory.
      * @param {Uint8Array} memory image
      * @param {Number} addr memory address
      * @return {Boolean} true if canvas is updated and it requires waiting vsync
      */
-
-
     auto(memory, addr) {
       let shown = false;
-
       for (;;) {
         var cmd = mem_read_u16be(memory, addr);
         addr += 2;
-
         switch (cmd) {
           case C_LINE:
             {
               const n = mem_read_u16be(memory, addr + 0);
               const x = [];
               const y = [];
-
               for (let i = 0; i < n; ++i) {
                 x.push(mem_read_u16be(memory, addr + 2 + i * 4));
                 y.push(mem_read_u16be(memory, addr + 4 + i * 4));
               }
-
               addr += 2 + 4 * n;
               this.line(x, y);
               break;
             }
-
           case C_SPLINE:
             throw new Error('magic2: unsupported command SPLINE');
-
           case C_BOX:
             addr += 8;
             throw new Error('magic2: unsupported command BOX');
-
           case C_TRIANGLE:
             throw new Error('magic2: unsupported command TRIANGLE');
-
           case C_BOX_FULL:
             {
               const x1 = mem_read_u16be(memory, addr + 0);
@@ -1022,10 +945,8 @@ void main() {
               this.boxFull(x1, y1, x2, y2);
               break;
             }
-
           case C_CIRCLE_FULL:
             throw new Error('magic2: unsupported command CIRCLE_FULL');
-
           case C_SET_WINDOW:
             {
               const x1 = mem_read_u16be(memory, addr + 0);
@@ -1036,7 +957,6 @@ void main() {
               this.setWindow(x1, y1, x2, y2);
               break;
             }
-
           case C_SET_MODE:
             {
               const mode = mem_read_u16be(memory, addr);
@@ -1044,14 +964,11 @@ void main() {
               console.warn('magic2: ignoring command SET_MODE, ' + mode);
               break;
             }
-
           case C_POINT:
             throw new Error('magic2: unsupported command POINT');
-
           case C_CLS:
             this.cls();
             break;
-
           case C_SET_3D_PARAMETER:
             {
               const param_num = mem_read_u16be(memory, addr + 0);
@@ -1060,23 +977,18 @@ void main() {
               this.set3dParameter(param_num, param_val);
               break;
             }
-
           case C_SET_3D_DATA:
             addr += this.set3dRawData(memory, addr);
             break;
-
           case C_TRANSLATE_3D_TO_2D:
             this.translate3dTo2d();
             break;
-
           case C_DISPLAY_2D:
             this.display2d();
             shown = true;
             break;
-
           case C_DONE:
             return shown;
-
           case C_COLOR:
             {
               const color = mem_read_u16be(memory, addr);
@@ -1084,7 +996,6 @@ void main() {
               this.color(color);
               break;
             }
-
           case C_CRT:
             {
               const crt = mem_read_u16be(memory, addr);
@@ -1092,14 +1003,11 @@ void main() {
               this.crt(crt);
               break;
             }
-
           case C_INIT:
             // TODO: Initialize palette, etc.
             break;
-
           case C_AUTO:
             throw new Error('magic2: AUTO should not be used inside AUTO');
-
           case C_APAGE:
             {
               const apage = mem_read_u16be(memory, addr);
@@ -1107,7 +1015,6 @@ void main() {
               this.apage(apage);
               break;
             }
-
           case C_DEPTH:
             {
               const minz = mem_read_u16be(memory, addr + 0);
@@ -1116,58 +1023,53 @@ void main() {
               this.depth(minz, maxz);
               break;
             }
-
           default:
             throw new Error('magic2: unknown command ' + cmd);
         }
-      } // not reached.
-
+      }
+      // not reached.
     }
+
     /**
      * Magic2 API: Sets active page for 2D drawing commands.
      * @param {number} apage active page
      */
-
-
     apage(apage) {
       this[_].apage = apage;
     }
+
     /**
      * Magic2 API: Sets Z address for the plane of projection, and clipping.
      * @param {number} minz Z address for the plane of projection (initial: 50)
      * @param {number} maxz Z address for clipping (initial: 2000)
      */
-
-
     depth(minz, maxz) {
       this[_].depth.minz = minz;
       this[_].depth.maxz = maxz;
     }
+
     /**
      * Extra API: Sets screen contrast.
      * @param {number} c contrast value from 0 to 15 (initial: 15)
      */
-
-
     contrast(c) {
       this[_].contrast = c / 15.0;
-
       for (let i = 0; i < 3; ++i) {
         let context = this[_].contexts[i];
         if (!context) continue;
         context.canvas.style.opacity = this[_].contrast;
       }
     }
+
     /**
      * Extra API: Draws a point in color 15.
      * @param {number} x address from 0 to 255
      * @param {number} y address from 0 to 255
      * @param {number} z address from 0 to 1000 (or maxz)
      */
-
-
     point3d(x, y, z, r) {
-      if (this[_].xr.activated) {// TODO
+      if (this[_].xr.activated) {
+        // TODO
       } else if (this[_].vr) {
         const c = this[_].contexts[this[_].fgcontext];
         const c1 = this.context(1);
@@ -1176,7 +1078,6 @@ void main() {
         camera.convert(x, y, z);
         const d1 = camera.z / 256;
         const x1 = c1.offset + camera.x / d1 * c1.scaleX;
-
         if (x1 < c1.width) {
           c.beginPath();
           c.arc(x1, camera.y / d1 * c1.scaleY, r * c1.scaleY, 0, 2 * Math.PI);
@@ -1184,13 +1085,11 @@ void main() {
           c.fill();
           c.closePath();
         }
-
         const c2 = this.context(2);
         camera.setup(o.alpha + c2.alpha, o.beta, o.gamma);
         camera.convert(x, y, z);
         const d2 = camera.z / 256;
         const x2 = c2.offset + camera.x / d2 * c2.scaleX;
-
         if (c2.base < x2) {
           c.beginPath();
           c.arc(x2, camera.y / d2 * c2.scaleY, r * c2.scaleY, 0, 2 * Math.PI);
@@ -1209,8 +1108,6 @@ void main() {
         c.closePath();
       }
     }
-
   }
-
   global.Magic2 = Magic2;
 })(typeof global !== 'undefined' ? global : typeof module !== 'undefined' ? module.exports : window);
